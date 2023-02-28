@@ -183,6 +183,8 @@ redis 常见数据结构以及使用场景分析？
 OHHHOH""HHOOHH""HOHOHHz
 "OHHOHH"依然
 
+
+
 1、除了项目上写的序列化框架还了解其他序列化框架吗？
 2、解释一下什么是粘包，什么是拆包
 3、有没有了解过netty里自己解决粘包拆包的？
@@ -957,4 +959,18 @@ age(index)
 这个表，update name where age = 10;
 加什么锁？
 
+本2.5，滴滴后端一面
+1.自我介绍
+2.Apache/Dubbo提交的 PR具体说一下，公司名义提交的还是个人名义?
+3聊项目
+4.微前端iframe子系统登录态，权限如何控制的，数据如何隔离的
+5.ThredLocal用过吗，解决什么问题，拿不到父线程ThredLocal怎么解决，用它处理trace怎么保证线程池父子线程trace 正常?
+6.volatile了解吗
+7.iava，Golang GC有什么相似和不同之处
+8.MySQL事务隔离级别了解吗，innodb在rr级别如何解决幻读，判断SQL有没有用到索引，该怎么优化?
+9redis zset数据结构 (ziplist,skiplist)
+10.redis持久化了解吗
+11.LRU实现思路，hash+双向链表
+12.全局自增ID服务思路
+反问
 
