@@ -936,3 +936,25 @@ MySQL热点数据按照页来存储，可能会存放很多非热点数据，导
 24. 那1万数据找x个最大，x不确定 - 排序
 25. 还有吗 - 不道了
 26. 反
+
+
+金山一轮
+
+1、 自我介绍
+2、 项目中的DDD是自己独立负责的吗？
+3、 领域划分边界怎么确定的？
+4、 项目中有使用到guava cache，是什么场景？
+5、 为什么在这个场景下选择guava cache？
+6、 这个本地缓存是怎么同步的？
+7、 为什么在项目中选择使用 spring EventListener
+8、 （开始八股文）synchronized 是啥？ReentrantLock 是啥？啥区别？
+9、 FutureTask是啥，干什么用的？
+9、 隔离级别？mvcc？
+10、
+id(主键)
+name
+age(index)
+这个表，update name where age = 10;
+加什么锁？
+
+
