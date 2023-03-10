@@ -1,4 +1,8 @@
 
+# 面试总结
+https://r2coding.com/#/README?id=%e8%ae%a1%e7%ae%97%e6%9c%ba%e7%bd%91%e7%bb%9c
+
+
 
 # 算法
 ## 冒泡排序
@@ -343,10 +347,13 @@ public final native void notifyAll(); 唤醒所有之前在当前对象上调用
 ## Java的原子性&&可见性&&有序性
 原子性
 是指一个操作或多个操作要么全部执行，且执行的过程不会被任何因素打断，要么就都不执行。
+在 Java 中，可以借助synchronized 、各种 Lock 以及各种原子类实现原子性。synchronized 和各种 Lock 可以保证任一时刻只有一个线程访问该代码块，因此可以保障原子性。各种原子类是利用 CAS (compare and swap) 操作（可能也会用到 volatile或者final关键字）来保证原子操作。
 
 可见性
 当一个线程修改了线程共享变量的值，其它线程能够立即得知这个修改。
 Java内存模型是通过在变量修改后将新值同步回主内存，在变量读取前从主内存刷新变量值这种依赖主内存作为传递媒介的方法来实现可见性的，无论是普通变量还是volatile变量都是如此。
+当一个线程对共享变量进行了修改，那么另外的线程都是立即可以看到修改后的最新值。在 Java 中，可以借助synchronized 、volatile 以及各种 Lock 实现可见性。
+如果我们将变量声明为 volatile ，这就指示 JVM，这个变量是共享且不稳定的，每次使用它都到主存中进行读取。
 
 在java中提供了volatile关键字，通过volatile关键字修饰内存中的变量，该变量在线程之间共享。
 volatile关键字是轻量级的锁（synchronized）。在使用的时候，消耗的成本比synchronized小很多。volatile用于修饰变量。
@@ -356,6 +363,7 @@ final关键字的可见性
 有序性
 即程序执行的顺序按照代码的先后顺序执行。
 Java内存模型中的程序天然有序性可以总结为一句话：如果在本线程内观察，所有操作都是有序的；如果在一个线程中观察另一个线程，所有操作都是无序的。前半句是指“线程内表现为串行语义”，后半句是指“指令重排序”现象和“工作内存主主内存同步延迟”现象。
+由于指令重排序问题，代码的执行顺序未必就是编写代码时候的顺序。我们上面讲重排序的时候也提到过：指令重排序可以保证串行语义一致，但是没有义务保证多线程间的语义也一致 ，所以在多线程下，指令重排序可能会导致一些问题。在 Java 中，volatile 关键字可以禁止指令进行重排序优化。
 
 ## volatile实现原理
 volatile修饰的变量，在翻译成汇编语言的时候，会有一个LOCK前缀的指令。
@@ -368,6 +376,50 @@ LOCK前缀的指令在多核处理器下会引发两件事情。
 
 volatile的适用范围
 volatile变量固然方便，但是存在着限制，volatile修饰的变量，并不能保证是原子操作的，所以多处理器操作数据时，会导致数据重复。所以volatile关键字通常被当作完成、中断的状态的标识使用。
+
+## 有一个线程会在某个时刻修改一个flag，多个线程一直读这个flag，怎么解决保证线程安全？这里我答了锁，然后说也可以给这个flag加volatile。然后感觉面试官意思只有volatile不行，但是这里不是只有一个线程在更新数据吗，需要考虑原子性修改问题吗？为啥只有volatile不行，有懂哥解释下吗。
+volatile 关键字能保证变量的可见性，但不能保证对变量的操作是原子性的。
+```java
+/**
+ * 微信搜 JavaGuide 回复"面试突击"即可免费领取个人原创的 Java 面试手册
+ *
+ * @author Guide哥
+ * @date 2022/08/03 13:40
+ **/
+public class VolatoleAtomicityDemo {
+    public volatile static int inc = 0;
+
+    public void increase() {
+        inc++;
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        ExecutorService threadPool = Executors.newFixedThreadPool(5);
+        VolatoleAtomicityDemo volatoleAtomicityDemo = new VolatoleAtomicityDemo();
+        for (int i = 0; i < 5; i++) {
+            threadPool.execute(() -> {
+                for (int j = 0; j < 500; j++) {
+                    volatoleAtomicityDemo.increase();
+                }
+            });
+        }
+        // 等待1.5秒，保证上面程序执行完成
+        Thread.sleep(1500);
+        System.out.println(inc);
+        threadPool.shutdown();
+    }
+}
+```
+很多人会误认为自增操作 inc++ 是原子性的，实际上，inc++ 其实是一个复合操作，包括三步：
+读取 inc 的值。
+对 inc 加 1。
+将 inc 的值写回内存。
+
+volatile 是无法保证这三个操作是具有原子性的，有可能导致下面这种情况出现：线程 1 对 inc 进行读取操作之后，还未对其进行修改。线程 2 又读取了 inc的值并对其进行修改（+1），再将inc 的值写回内存。线程 2 操作完毕后，线程 1 对 inc的值进行修改（+1），再将inc 的值写回内存。这也就导致两个线程分别对 inc 进行了一次自增操作后，inc 实际上只增加了 1。其实，如果想要保证上面的代码运行正确也非常简单，利用 synchronized 、Lock或者AtomicInteger都可以。
+
+## volatile关键字有什么特点，原理是什么？
+如何保证变量的可见性？在 Java 中，volatile 关键字可以保证变量的可见性，如果我们将变量声明为 volatile ，这就指示 JVM，这个变量是共享且不稳定的，每次使用它都到主存中进行读取。
+重要的作用就是防止 JVM 的指令重排序。 如果我们将变量声明为 volatile ，在对这个变量进行读写操作的时候，会通过插入特定的 内存屏障 的方式来禁止指令重排序。
 
 ## 用过哪些序列化，java序列化的原理，底层算法？
 java.io.ObjectOutputStream：表示对象输出流，它的writeObject(Object obj)方法可以对参数指定的obj对象进行序列化，把得到的字节序列写到一个目标输出流中；
@@ -430,21 +482,77 @@ interrupted阻塞：线程执行了interrupt()方法，该线程处于interrupte
 stop阻塞：线程执行了stop()方法，该线程处于stop状态。
 
 ## 线程池有哪些参数，分别的含义
+   /**
+     * 用给定的初始参数创建一个新的ThreadPoolExecutor。
+     */
+    public ThreadPoolExecutor(int corePoolSize,//线程池的核心线程数量
+                              int maximumPoolSize,//线程池的最大线程数
+                              long keepAliveTime,//当线程数大于核心线程数时，多余的空闲线程存活的最长时间
+                              TimeUnit unit,//时间单位
+                              BlockingQueue<Runnable> workQueue,//任务队列，用来储存等待执行任务的队列
+                              ThreadFactory threadFactory,//线程工厂，用来创建线程，一般默认即可
+                              RejectedExecutionHandler handler//拒绝策略，当提交的任务过多而不能及时处理时，我们可以定制策略来处理任务
+                               ) {
+        if (corePoolSize < 0 ||
+            maximumPoolSize <= 0 ||
+            maximumPoolSize < corePoolSize ||
+            keepAliveTime < 0)
+            throw new IllegalArgumentException();
+        if (workQueue == null || threadFactory == null || handler == null)
+            throw new NullPointerException();
+        this.corePoolSize = corePoolSize;
+        this.maximumPoolSize = maximumPoolSize;
+        this.workQueue = workQueue;
+        this.keepAliveTime = unit.toNanos(keepAliveTime);
+        this.threadFactory = threadFactory;
+        this.handler = handler;
+    }
+
+corePoolSize : 任务队列未达到队列容量时，最大可以同时运行的线程数量。
+maximumPoolSize : 任务队列中存放的任务达到队列容量的时候，当前可以同时运行的线程数量变为最大线程数。
+workQueue: 新任务来的时候会先判断当前运行的线程数量是否达到核心线程数，如果达到的话，新任务就会被存放在队列中。
+
+ThreadPoolExecutor其他常见参数 
+keepAliveTime: 线程池中的线程数量大于 corePoolSize 的时候，如果这时没有新的任务提交，核心线程外的线程不会立即销毁，而是会等待，直到等待的时间超过了 keepAliveTime才会被回收销毁；
+unit : keepAliveTime 参数的时间单位。
+threadFactory :executor 创建新线程的时候会用到。
+handler :饱和策略。关于饱和策略下面单独介绍一下。
 
 ## 如果线程池核心线程数设置为5，最大线程数设置为10，阻塞队列是一个无界队列，一直提交线程，线程数最大能达到多少？
+容量为 Integer.MAX_VALUE 的 LinkedBlockingQueue（无界队列）最多只能创建核心线程数的线程。
 
 ## 如果线程池核心线程数设置为5，最大线程数设置为10，阻塞队列大小也设置的是10，线程池刚启动的时候有多少个线程？
+5个，因为核心线程数是5，所以线程池刚启动的时候有5个线程。
 
+## SynchronousQueue（同步队列） ：CachedThreadPool 
+SynchronousQueue 没有容量，不存储元素，目的是保证对于提交的任务，如果有空闲线程，则使用空闲线程来处理；
+否则新建一个线程来处理任务。也就是说，CachedThreadPool 的最大线程数是 Integer.MAX_VALUE ，可以理解为线程数是可以无限扩展的，可能会创建大量线程，从而导致 OOM。
 
 ## 如果达到核心线程数但是没达到最大线程数然后队列已满 这时候怎么办？
+如果达到核心线程数但是没达到最大线程数然后队列已满，这时候会创建新的线程来处理任务，直到达到最大线程数。
 
 ## 如果让你自己实现阻塞队列，如何实现？阻塞唤醒这一部分，如何实现？
+阻塞队列的实现主要是通过两个锁来实现的，一个是生产者锁，一个是消费者锁。生产者锁用来控制生产者的生产速度，消费者锁用来控制消费者的消费速度。当生产者生产的速度大于消费者消费的速度时，生产者锁会阻塞生产者，当消费者消费的速度大于生产者生产的速度时，消费者锁会阻塞消费者。
 
 ## 线程池的拒绝策略有哪些？自己写过拒绝策略嘛
+如果当前同时运行的线程数量达到最大线程数量并且队列也已经被放满了任务时，ThreadPoolTaskExecutor 定义一些策略:T
+hreadPoolExecutor.AbortPolicy： 抛出 RejectedExecutionException来拒绝新任务的处理。
+ThreadPoolExecutor.CallerRunsPolicy： 调用执行自己的线程运行任务，也就是直接在调用execute方法的线程中运行(run)被拒绝的任务，如果执行程序已关闭，则会丢弃该任务。因此这种策略会降低对于新任务提交速度，影响程序的整体性能。如果您的应用程序可以承受此延迟并且你要求任何一个任务请求都要被执行的话，你可以选择这个策略。
+ThreadPoolExecutor.DiscardPolicy： 不处理新任务，直接丢弃掉。
+ThreadPoolExecutor.DiscardOldestPolicy： 此策略将丢弃最早的未处理的任务请求。
 
-## 线程池的工作原理
+举个例子： Spring 通过 ThreadPoolTaskExecutor 或者我们直接通过 ThreadPoolExecutor 的构造函数创建线程池的时候，
+当我们不指定 RejectedExecutionHandler 饱和策略的话来配置线程池的时候默认使用的是 ThreadPoolExecutor.AbortPolicy。
+在默认情况下，ThreadPoolExecutor 将抛出 RejectedExecutionException 来拒绝新来的任务 ，这代表你将丢失对这个任务的处理。 
+对于可伸缩的应用程序，建议使用 ThreadPoolExecutor.CallerRunsPolicy。
+当最大池被填满时，此策略为我们提供可伸缩队列。（这个直接查看 ThreadPoolExecutor 的构造函数源码就可以看出，比较简单的原因，这里就不贴代码了）
+
+DelayedWorkQueue（延迟阻塞队列）：ScheduledThreadPool 和 SingleThreadScheduledExecutor 。DelayedWorkQueue 的内部元素并不是按照放入的时间排序，而是会按照延迟的时间长短对任务进行排序，内部采用的是“堆”的数据结构，可以保证每次出队的任务都是当前队列中执行时间最靠前的。DelayedWorkQueue 添加元素满了之后会自动扩容原来容量的 1/2，即永远不会阻塞，最大扩容可达 Integer.MAX_VALUE，所以最多只能创建核心线程数的线程
+
+## 自己写拒绝策略
 
 ## 看过Java线程池的源码吗？如果想监控线程池的资源，通过看它的源码，它有没有提供什么方式来实现这个功能？
+
 
 ## 什么是CAS，CAS的原理，CAS的缺点，CAS 机制了解吗，存在什么问题
 
@@ -504,8 +612,6 @@ lock：一般使用ReentrantLock类做为锁。在加锁和解锁处需要通过
 
 ## Java中的原子类是怎么实现的知道吗？
 
-## volatile关键字有什么特点，原理是什么？
-
 ## ThreadLocal的基本原理是什么？
 
 ## Java中有什么无锁操作的方式？
@@ -547,8 +653,6 @@ lock：一般使用ReentrantLock类做为锁。在加锁和解锁处需要通过
 
 ## 只有一个核需要同步多线程吗？
 
-## 有一个线程会在某个时刻修改一个flag，多个线程一直读这个flag，怎么解决保证线程安全？这里我答了锁，然后说也可以给这个flag加volatile。然后感觉面试官意思只有volatile不行，但是这里不是只有一个线程在更新数据吗，需要考虑原子性修改问题吗？为啥只有volatile不行，有懂哥解释下吗。
-
 ## Java的线程安全问题。
 
 ## 怎么查看一个进程占用的内存大小？
@@ -563,12 +667,39 @@ lock：一般使用ReentrantLock类做为锁。在加锁和解锁处需要通过
 ## JVM内存模型
 
 ## JMM内存模型
+主内存 ：所有线程创建的实例对象都存放在主内存中，不管该实例对象是成员变量还是方法中的本地变量(也称局部变量)
+本地内存 ：每个线程都有一个私有的本地内存来存储共享变量的副本，并且，每个线程只能访问自己的本地内存，无法访问其他线程的本地内存。本地内存是 JMM 抽象出来的一个概念，存储了主内存中的共享变量副本。
 
 ## JVM内存模型和JMM内存模型的区别
+Java 内存区域和内存模型是完全不一样的两个东西 ：JVM 内存结构和 Java 虚拟机的运行时区域相关，
+定义了 JVM 在运行时如何分区存储程序数据，就比如说堆主要用于存放对象实例。
+Java 内存模型和 Java 的并发编程相关，抽象了线程和主内存之间的关系就比如说线程之间的共享变量必须存储在主内存中，规定了从 Java 源代码到 CPU 可执行指令的这个转化过程要遵守哪些和并发相关的原则和规范，其主要目的是为了简化多线程编程，增强程序可移植性的。
+
 
 ## 聊聊垃圾回收器，什么是垃圾回收
+如果说收集算法是内存回收的方法论，那么垃圾收集器就是内存回收的具体实现。
 
 ## 垃圾回收器的分类，垃圾回收器的实现原理，垃圾回收器的优缺点
+Serial 收集器
+这个收集器是一个单线程收集器了。它的 “单线程” 的意义不仅仅意味着它只会使用一条垃圾收集线程去完成垃圾收集工作，更重要的是它在进行垃圾收集工作的时候必须暂停其他所有的工作线程（ "Stop The World" ），直到它收集结束。
+新生代采用标记-复制算法，老年代采用标记-整理算法
+
+ParNew 收集器
+ParNew 收集器其实就是 Serial 收集器的多线程版本，除了使用多线程进行垃圾收集外，其余行为（控制参数、收集算法、回收策略等等）和 Serial 收集器完全一样。
+新生代采用标记-复制算法，老年代采用标记-整理算法。
+
+Parallel Scavenge 收集器
+Parallel Scavenge 收集器也是使用标记-复制算法的多线程收集器，它看上去几乎和 ParNew 都一样。 那么它有什么特别之处呢？
+Parallel Scavenge 收集器关注点是吞吐量（高效率的利用 CPU）。CMS 等垃圾收集器的关注点更多的是用户线程的停顿时间（提高用户体验）。所谓吞吐量就是 CPU 中用于运行用户代码的时间与 CPU 总消耗时间的比值。
+新生代采用标记-复制算法，老年代采用标记-整理算法。
+
+CMS 收集器CMS（Concurrent Mark Sweep）收集器是一种以获取最短回收停顿时间为目标的收集器。
+它非常符合在注重用户体验的应用上使用。CMS（Concurrent Mark Sweep）收集器是 HotSpot 虚拟机第一款真正意义上的并发收集器，它第一次实现了让垃圾收集线程与用户线程（基本上）同时工作。从名字中的Mark Sweep这两个词可以看出，CMS 收集器是一种 “标记-清除”算法实现的，它的运作过程相比于前面几种垃圾收集器来说更加复杂一些。整个过程分为四个步骤：初始标记： 暂停所有的其他线程，并记录下直接与 root 相连的对象，速度很快 ；并发标记： 同时开启 GC 和用户线程，用一个闭包结构去记录可达对象。但在这个阶段结束，这个闭包结构并不能保证包含当前所有的可达对象。因为用户线程可能会不断的更新引用域，所以 GC 线程无法保证可达性分析的实时性。所以这个算法里会跟踪记录这些发生引用更新的地方。重新标记： 重新标记阶段就是为了修正并发标记期间因为用户程序继续运行而导致标记产生变动的那一部分对象的标记记录，这个阶段的停顿时间一般会比初始标记阶段的时间稍长，远远比并发标记阶段时间短并发清除： 开启用户线程，同时 GC 线程开始对未标记的区域做清扫。
+
+G1 收集器G1 (Garbage-First) 是一款面向服务器的垃圾收集器,主要针对配备多颗处理器及大容量内存的机器. 以极高概率满足 GC 停顿时间要求的同时,还具备高吞吐量性能特征.被视为 JDK1.7 中 HotSpot 虚拟机的一个重要进化特征。它具备以下特点：并行与并发：G1 能充分利用 CPU、多核环境下的硬件优势，使用多个 CPU（CPU 或者 CPU 核心）来缩短 Stop-The-World 停顿时间。部分其他收集器原本需要停顿 Java 线程执行的 GC 动作，G1 收集器仍然可以通过并发的方式让 java 程序继续执行。分代收集：虽然 G1 可以不需要其他收集器配合就能独立管理整个 GC 堆，但是还是保留了分代的概念。空间整合：与 CMS 的“标记-清除”算法不同，G1 从整体来看是基于“标记-整理”算法实现的收集器；从局部上来看是基于“标记-复制”算法实现的。可预测的停顿：这是 G1 相对于 CMS 的另一个大优势，降低停顿时间是 G1 和 CMS 共同的关注点，但 G1 除了追求低停顿外，还能建立可预测的停顿时间模型，能让使用者明确指定在一个长度为 M 毫秒的时间片段内。G1 收集器的运作大致分为以下几个步骤：初始标记并发标记最终标记筛选回收G1 收集器在后台维护了一个优先列表，每次根据允许的收集时间，优先选择回收价值最大的 Region(这也就是它的名字 Garbage-First 的由来) 。这种使用 Region 划分内存空间以及有优先级的区域回收方式，保证了 G1 收集器在有限时间内可以尽可能高的收集效率（把内存化整为零）。
+
+
+
 
 ## 常用 GC 算法，常用的垃圾收集器， G1 了解吗
 
