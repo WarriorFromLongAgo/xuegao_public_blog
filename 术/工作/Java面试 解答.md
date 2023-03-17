@@ -421,6 +421,13 @@ volatile 是无法保证这三个操作是具有原子性的，有可能导致�
 如何保证变量的可见性？在 Java 中，volatile 关键字可以保证变量的可见性，如果我们将变量声明为 volatile ，这就指示 JVM，这个变量是共享且不稳定的，每次使用它都到主存中进行读取。
 重要的作用就是防止 JVM 的指令重排序。 如果我们将变量声明为 volatile ，在对这个变量进行读写操作的时候，会通过插入特定的 内存屏障 的方式来禁止指令重排序。
 
+## 什么是内存屏障，什么是内存屏障的作用
+按照内存屏障的分类，我理解有两类。
+（1）一类是强制读取主内存，强制刷新主内存的内存屏障，叫做Load屏障和Store屏障
+（2）另外一类是禁止指令重排序的内存屏障，有四个分别叫做LoadLoad屏障、StoreStore屏障、LoadStore屏障、StoreLoad屏障
+![](images/20230312223515.png)
+https://zhuanlan.zhihu.com/p/505956490
+
 ## 用过哪些序列化，java序列化的原理，底层算法？
 java.io.ObjectOutputStream：表示对象输出流，它的writeObject(Object obj)方法可以对参数指定的obj对象进行序列化，把得到的字节序列写到一个目标输出流中；
 java.io.ObjectInputStream：表示对象输入流，它的readObject()方法源输入流中读取字节序列，再把它们反序列化成为一个对象，并将其返回；
@@ -550,19 +557,118 @@ ThreadPoolExecutor.DiscardOldestPolicy： 此策略将丢弃最早的未处理�
 DelayedWorkQueue（延迟阻塞队列）：ScheduledThreadPool 和 SingleThreadScheduledExecutor 。DelayedWorkQueue 的内部元素并不是按照放入的时间排序，而是会按照延迟的时间长短对任务进行排序，内部采用的是“堆”的数据结构，可以保证每次出队的任务都是当前队列中执行时间最靠前的。DelayedWorkQueue 添加元素满了之后会自动扩容原来容量的 1/2，即永远不会阻塞，最大扩容可达 Integer.MAX_VALUE，所以最多只能创建核心线程数的线程
 
 ## 自己写拒绝策略
+```java
+    private static final ThreadPoolExecutor REJECTED_DIY_POOL_EXECUTOR = new ThreadPoolExecutor(
+            5,
+            10,
+            1L,
+            java.util.concurrent.TimeUnit.SECONDS,
+            new ArrayBlockingQueue<>(10),
+            r -> new Thread(r, "ThreadPool rejected" + COUNT.incrementAndGet()),
+            new RejectedExecutionHandler() {
+                @Override
+                public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+                    System.out.println("rejectedExecution: " + Thread.currentThread().getName());
+                    throw new RuntimeException("rejectedExecution");
+                }
+            });
+
+    public static ThreadPoolExecutor getRejectedDiyInstance() {
+        return REJECTED_DIY_POOL_EXECUTOR;
+    }
+```
 
 ## 看过Java线程池的源码吗？如果想监控线程池的资源，通过看它的源码，它有没有提供什么方式来实现这个功能？
+```java
+@RestController
+public class FmkThreadController {
+    private static final Logger log = LoggerFactory.getLogger(FmkThreadController.class);
 
+    @Autowired
+    @Qualifier(FmkConstant.XUEGAO_THREAD_NAME_BEAN)
+    private Executor asyncTaskExecutor;
+
+    @GetMapping(path = "/printThreadInfo")
+    public Result<String> printThreadInfo() {
+        ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) asyncTaskExecutor;
+        System.out.println("printThreadInfo: " + Thread.currentThread().getName());
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println(" ============================================ ");
+        System.out.println("threadName = " + Thread.currentThread().getName());
+        System.out.println("CorePoolSize = " + executor.getCorePoolSize());
+        System.out.println("MaxPoolSize = " + executor.getMaxPoolSize());
+        System.out.println("PoolSize = " + executor.getPoolSize());
+        System.out.println("ActiveCount = " + executor.getActiveCount());
+        System.out.println("22222222222222222222222222222222222222222222222");
+        ThreadPoolExecutor threadPoolExecutor = executor.getThreadPoolExecutor();
+        System.out.println("2 CorePoolSize = " + threadPoolExecutor.getCorePoolSize());
+        System.out.println("2 MaxPoolSize = " + threadPoolExecutor.getMaximumPoolSize());
+        System.out.println("2 PoolSize = " + threadPoolExecutor.getPoolSize());
+        System.out.println("2 ActiveCount = " + threadPoolExecutor.getActiveCount());
+        System.out.println("2 QueueSize = " + threadPoolExecutor.getQueue().size());
+        System.out.println("2 TaskCount = " + threadPoolExecutor.getTaskCount());
+        System.out.println("2 CompletedTaskCount = " + threadPoolExecutor.getCompletedTaskCount());
+        System.out.println(" ============================================ ");
+        return Result.ok("printThreadInfo");
+    }
+
+    @GetMapping(path = "/pushTask")
+    public Result<String> pushTask() {
+        ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) asyncTaskExecutor;
+        executor.execute(() -> {
+            System.out.println("pushTask threadName = " + Thread.currentThread().getName());
+            try {
+                TimeUnit.SECONDS.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
+        return Result.ok("pushTask");
+    }
+
+}
+```
 
 ## 什么是CAS，CAS的原理，CAS的缺点，CAS 机制了解吗，存在什么问题
 
+CAS,compare and swap的缩写，中文翻译成比较并交换。
+CAS 操作包含三个操作数 —— 内存位置（V）、预期原值（A）和新值(B)。 如果内存位置的值与预期原值相匹配，那么处理器会自动将该位置值更新为新值 。
+否则，处理器不做任何操作。无论哪种情况，它都会在 CAS 指令之前返回该 位置的值。（在 CAS 的一些特殊情况下将仅返回 CAS 是否成功，而不提取当前 值。）
+CAS 有效地说明了“我认为位置 V 应该包含值 A；如果包含该值，则将 B 放到这个位置；否则，不要更改该位置，只告诉我这个位置现在的值即可。”
+
+CAS 缺点
+1、自循环时间长，开销大
+上面我们说过如果CAS不成功，则会原地循环（自旋操作），如果长时间自旋会给CPU带来非常大的执行开销。并发量比较大的情况下，CAS成功概率可能比较低，可能会重试很多次才会成功。
+2、只能保证一个共享变量的原子操作
+不能确保代码块的原子性（注意是代码块）
+CAS机制所确保的是一个变量的原子性操作，而不能保证整个代码块的原子性，比如需要保证3个变量共同进行原子性的更新，就不得不使用synchronized或者lock了。
+3、ABA问题。
+CAS需要在操作值的时候检查下值有没有发生变化，如果没有发生变化则更新，但是如果一个值原来是A，变成了B，又变成了A，那么使用CAS进行检查时会发现它的值没有发生变化，但是实际上却变化了。这就是CAS的ABA问题。 常见的解决思路是使用版本号。在变量前面追加上版本号，每次变量更新的时候把版本号加一，那么A-B-A 就会变成1A-2B-3A。 目前在JDK的atomic包里提供了一个类AtomicStampedReference来解决ABA问题。这个类的compareAndSet方法作用是首先检查当前引用是否等于预期引用，并且当前标志是否等于预期标志，如果全部相等，则以原子方式将该引用和该标志的值设置为给定的更新值。
+
 ## 什么是AQS，AQS的原理，AQS的应用场景
+双向队列
+
+线程一加锁成功时AQS内部实现
+线程二/三加锁失败时AQS中等待队列的数据模型
+线程一释放锁及线程二获取锁实现原理
+通过线程场景来讲解公平锁具体实现原理
+通过线程场景来讲解 Condition 中 await()和signal()实现原理
+说一下AQS的原理？ - 记得要让着本宝宝的回答 - 知乎
+https://www.zhihu.com/question/483996441/answer/2333128650
 
 ## Unsafe怎么实现？
 
-## 什么是ABA问题，如何解决ABA问题
-
 ## 什么是乐观锁，什么是悲观锁
+synchronized、ReentrantLock这种独占锁属于悲观锁，它是在假设需要操作的代码一定会发生冲突的，执行代码的时候先对代码加锁，让其他线程在外面等候排队获取锁。
+悲观锁如果锁的时间比较长，会导致其他线程一直处于等待状态，像我们部署的web应用，一般部署在tomcat中，内部通过线程池来处理用户的请求，
+如果很多请求都处于等待获取锁的状态，可能会耗尽tomcat线程池，从而导致系统无法处理后面的请求，导致服务器处于不可用状态。
+
+除此之外，还有乐观锁，乐观锁的含义就是假设系统没有发生并发冲突，先按无锁方式执行业务，到最后了检查执行业务期间是否有并发导致数据被修改了，
+如果有并发导致数据被修改了 ，就快速返回失败，这样的操作使系统并发性能更高一些。cas中就使用了这样的操作。
 
 ## 什么是偏向锁，什么是轻量级锁，什么是重量级锁
 
@@ -573,6 +679,14 @@ DelayedWorkQueue（延迟阻塞队列）：ScheduledThreadPool 和 SingleThreadS
 ## 什么是公平锁，什么是非公平锁
 
 ## 什么是死锁，死锁的四个必要条件，如何避免死锁
+死锁是指多个进程因竞争资源而造成的一种僵局（互相等待），若无外力作用，这些进程都将无法向前推进。
+
+（1）互斥条件：一个资源每次只能被一个进程使用，即在一段时间内某 资源仅为一个进程所占有。此时若有其他进程请求该资源，则请求进程只能等待。
+（2）请求与保持条件：进程已经保持了至少一个资源，但又提出了新的资源请求，而该资源 已被其他进程占有，此时请求进程被阻塞，但对自己已获得的资源保持不放。
+（3）不可剥夺条件:进程所获得的资源在未使用完毕之前，不能被其他进程强行夺走，即只能 由获得该资源的进程自己来释放（只能是主动释放)。
+（4）循环等待条件: 若干进程间形成首尾相接循环等待资源的关系
+这四个条件是死锁的必要条件，只要系统发生死锁，这些条件必然成立，而只要上述条件之一不满足，就不会发生死锁。
+
 
 ## Java的Lock和synchronized的原理和区别
 1.来源：
@@ -601,25 +715,22 @@ lock：一般使用ReentrantLock类做为锁。在加锁和解锁处需要通过
 ## 对象锁和类锁的区别
 
 ## 什么是线程安全，什么是线程不安全
-
-## 什么是原子性，
-
-## 什么是可见性，
-
-## 什么是有序性
-
-## 什么是内存屏障，什么是内存屏障的作用
+多个线程，操作一个对象中的属性时。会产生线程安全问题。
 
 ## Java中的原子类是怎么实现的知道吗？
 
 ## ThreadLocal的基本原理是什么？
+ThreadLocal的key是线程，value是存储的值
 
 ## Java中有什么无锁操作的方式？
 
 
 ## 如果在线程池中的task中出现了没有捕获的异常会对当前线程有什么影响？对线程池有什么影响？
-
+https://blog.csdn.net/weixin_37968613/article/details/108407774
 ## 如果出现上面这种异常应该对线程进行什么处理呢，线程池应该怎么处理呢？
+1、execute方法,可以看异常输出在控制台，而submit在控制台没有直接输出，必须调用Future.get()方法时，可以捕获到异常。
+2、一个线程出现异常不会影响线程池里面其他线程的正常执行。
+3、线程不是被回收而是线程池把这个线程移除掉，同时创建一个新的线程放到线程池中。
 
 ## ReentrantLock 对比 sync 锁
 
@@ -629,13 +740,206 @@ lock：一般使用ReentrantLock类做为锁。在加锁和解锁处需要通过
 
 ## 怎么保证3个线程执行顺序？
 
-## Java解决同步的方式？
+## 打印ABC，三个线程，循环10次
+```java
+public class ThreadABC {
+
+    private void printA(Thread thread) {
+        try {
+            TimeUnit.SECONDS.sleep(20);
+            System.out.print("-A-");
+            LockSupport.unpark(thread);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void printB(Thread thread) {
+        try {
+            TimeUnit.SECONDS.sleep(10);
+            LockSupport.park(thread);
+            System.out.print("-B-");
+            LockSupport.unpark(thread);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void printC() {
+        try {
+            TimeUnit.SECONDS.sleep(5);
+            LockSupport.park();
+            System.out.print("-C-");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        ThreadABC threadABC = new ThreadABC();
+        Thread threadC = new Thread(threadABC::printC);
+        Thread threadB = new Thread(() -> threadABC.printB(threadC));
+        Thread threadA = new Thread(() -> threadABC.printA(threadB));
+
+        threadA.start();
+        threadB.start();
+        threadC.start();
+    }
+}
+```
+
+
+```java
+public class ComplateFutureABC {
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
+        for (int i = 0; i < 3; i++) {
+            CompletableFuture<Void> complete = CompletableFuture
+                    .runAsync(() -> {
+                        System.out.print(Thread.currentThread().getName() + " = A = ");
+                        long id = Thread.currentThread().getId();
+                        System.out.println(id);
+                    })
+                    .whenComplete((unused, throwable) -> {
+                        System.out.print(Thread.currentThread().getName() + " = B = ");
+                        long id = Thread.currentThread().getId();
+                        System.out.println(id);
+                    })
+                    .whenComplete((unused, throwable) -> {
+                        System.out.print(Thread.currentThread().getName() + " = C = ");
+                        long id = Thread.currentThread().getId();
+                        System.out.println(id);
+                    });
+            complete.get();
+        }
+    }
+}
+```
+```java
+public class ABC2 {
+    public static void main(String[] args) {
+        new A().start();
+        new B().start();
+        new C().start();
+
+    }
+
+    // 以A开始的信号量,初始信号量数量为1
+    private static Semaphore A = new Semaphore(1);
+    // B、C信号量,A完成后开始,初始信号数量为0
+    private static Semaphore B = new Semaphore(0);
+    private static Semaphore C = new Semaphore(0);
+
+    static class A extends Thread {
+        @Override
+        public void run() {
+            for (int i = 0; i < 10; i++) {
+                try {
+                    // A获取信号执行,A信号量减1,当A为0时将无法继续获得该信号量
+                    A.acquire();
+                    System.out.println("A");
+                    // B释放信号，B信号量加1（初始为0），此时可以获取B信号量
+                    B.release();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    static class B extends Thread {
+        @Override
+        public void run() {
+            for (int i = 0; i < 10; i++) {
+                try {
+                    B.acquire();
+                    System.out.println("B");
+                    C.release();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    static class C extends Thread {
+
+        @Override
+        public void run() {
+            for (int i = 0; i < 10; i++) {
+                try {
+                    C.acquire();
+                    System.out.println("C");
+                    A.release();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+}
+```
+
+```java
+public class ABC20211208 {
+    public static void main(String[] args) {
+        AtomicInteger atomicInteger = new AtomicInteger(0);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < 3; i++) {
+                    if (atomicInteger.get() % 3 == 0) {
+                        System.out.println(Thread.currentThread().getName() + " A ");
+                        atomicInteger.incrementAndGet();
+                    } else {
+                        i--;
+                    }
+                }
+            }
+        }).start();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < 3; i++) {
+                    if (atomicInteger.get() % 3 == 1) {
+                        System.out.println(Thread.currentThread().getName() + " B ");
+                        atomicInteger.incrementAndGet();
+                    } else {
+                        i--;
+                    }
+                }
+            }
+        }).start();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < 3; i++) {
+                    if (atomicInteger.get() % 3 == 2) {
+                        System.out.println(Thread.currentThread().getName() + " C ");
+                        atomicInteger.incrementAndGet();
+                    } else {
+                        i--;
+                    }
+                }
+            }
+        }).start();
+    }
+}
+```
 
 ## Java的同步安全的三个条件。
 
 ## 因为创建线程是比较耗时的，JDK的线程池能不能一开始就创建好线程？
 
+
 ## 线程池的阻塞队列都有哪些类型，介绍一下原理呢？
+ArrayBlockingQueue
+LinkedBlockingQueue
+SynchronousQueue
+SynchronousQueue最大的不同之处在于，它的容量不同，所以没有地方来暂存元素，导致每次取数据都要先阻塞，直到有数据放入；同理，每次放数据的时候也会阻塞，直到有消费者来取。
+SynchronousQueue的容量不是1而是0，因为SynchronousQueue不需要去持有元素，它做的就是直接传递。
+PriorityBlockingQueue
+PriorityBlockingQueue是一个支持优先级的无界阻塞队列，可以通过自定义类实现compareTo()方法来制定元素排序规则，或者初始化时通过构造器参数Comparator来制定排序规则。
 
 ## ThredLocal用过吗，解决什么问题，拿不到父线程ThredLocal怎么解决，用它处理trace怎么保证线程池父子线程trace 正常?
 
@@ -797,6 +1101,7 @@ G1 收集器G1 (Garbage-First) 是一款面向服务器的垃圾收集器,主要
 ## 索引覆盖了解吗
 
 ## 索引失效的场景
+1, “列类型”与“where值类型”不符，不能命中索引，会导致全表扫描(full table scan)。
 
 ## 数据库怎么解决多个线程同时写。并发更新场景的时候会有什么问题，怎么解决。
 
@@ -806,6 +1111,19 @@ G1 收集器G1 (Garbage-First) 是一款面向服务器的垃圾收集器,主要
 
 ## 那MySQL其实也有Buffer Pool，热点数据也在Buffer Pool里边，为啥不行？
 MySQL热点数据按照页来存储，可能会存放很多非热点数据，导致内存不够。
+
+## 什么是 事务的 SavePoint？ 
+
+```mysql
+begin;
+insert into t(a) values(1);
+SAVEPOINT s;
+insert into t(a) values(2);
+RELEASE SAVEPOINT s;
+commit;
+```
+
+回滚了一次savepoint，所以第二条数据不会插入。
 
 # mybatis
 
