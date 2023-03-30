@@ -941,7 +941,78 @@ SynchronousQueue的容量不是1而是0，因为SynchronousQueue不需要去持�
 PriorityBlockingQueue
 PriorityBlockingQueue是一个支持优先级的无界阻塞队列，可以通过自定义类实现compareTo()方法来制定元素排序规则，或者初始化时通过构造器参数Comparator来制定排序规则。
 
+## InheritableThreadLocal 父子线程是什么
+当使用InheritableThreadLocal时，父线程和子线程的关系是：在一个线程中执行new Thread()来创建线程，那么当前线程就是这个新创建线程的父线程。在这种情况下，子线程可以访问父线程中的InheritableThreadLocal变量，本质上就是在创建线程的时候将父线程中的本地变量值全部复制到子线程中
+
+```java
+public class 线程池中traceid传递2 {
+
+    // 最外层是线程池1,设置了之后,
+    // 第一次可以传递到线程池2里面，
+    // 因为第一次get的时候,getMap方法,会把ThreadLocal.ThreadLocalMap获取到
+
+    // 但是第二次,就不可以传递到线程池2里面
+    // 因为 InheritableThreadLocal 里面的 ThreadLocalMap 里面的 Entry 里面的 value 是弱引用,所以第二次就被回收了
+    // 在 set 的时候,会触发
+    // cleanSomeSlots 主要作用：循环的去寻找脏Entry，即key=null的Entry，然后进行删除。
+
+    public static void main(String[] args) {
+        ThreadPoolExecutor threadPoolExecutor = MyThreadPool.getManyManyArrayPoolExecutor();
+        for (int i = 0; i < 10; i++) {
+            threadPoolExecutor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    ThreadLocal<String> threadLocal = new InheritableThreadLocal<>();
+                    threadLocal.set("hello");
+
+                    ThreadPoolExecutor threadPoolExecutor = MyThreadPool.getManyManyListPoolExecutor();
+                    for (int j = 0; j < 2; j++) {
+                        threadPoolExecutor.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                System.out.println(Thread.currentThread().getName() + " === " + threadLocal.get());
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    }
+}
+
+ThreadPool-many_many_list-11 === hello
+ThreadPool-many_many_list-11 === null
+ThreadPool-many_many_list-11 === null
+ThreadPool-many_many_list-11 === null
+ThreadPool-many_many_list-13 === hello
+ThreadPool-many_many_list-12 === hello
+ThreadPool-many_many_list-18 === hello
+ThreadPool-many_many_list-16 === hello
+ThreadPool-many_many_list-20 === hello
+ThreadPool-many_many_list-12 === null
+ThreadPool-many_many_list-13 === null
+ThreadPool-many_many_list-11 === null
+ThreadPool-many_many_list-17 === hello
+ThreadPool-many_many_list-11 === null
+ThreadPool-many_many_list-19 === hello
+ThreadPool-many_many_list-15 === hello
+ThreadPool-many_many_list-14 === hello
+ThreadPool-many_many_list-16 === null
+ThreadPool-many_many_list-18 === null
+ThreadPool-many_many_list-20 === null
+
+```
+
 ## ThredLocal用过吗，解决什么问题，拿不到父线程ThredLocal怎么解决，用它处理trace怎么保证线程池父子线程trace 正常?
+ttl
+
+## TransmittableThreadLocal
+TransmittableThreadLocal通过对执行任务的包装，对每一个任务都做了一层增强，在任务创建的时候capture()复制了一份父线程的数据，同时利用new Thread()特性，
+使用Holder解决了在父子线程中获取TransmittableThreadLocal实例的问题，使得在不同的线程中都能很方便地获取TransmittableThreadLocal和对应的value值1.
+
+这是一个ITL类型的对象，持有一个全局的WeakMap（weakMap的key是弱引用，同TL一样，也是为了解决内存泄漏的问题），里面存放了TTL对象
+并且重写了initialValue和childValue方法，尤其是childValue，可以看到在即将异步时父线程的属性是直接作为初始化值赋值给子线程的本地变量对象（TTL）的
+
 
 
 # JavaEE
@@ -1366,12 +1437,9 @@ MyBatis的二级缓存相对于一级缓存来说，实现了SqlSession之间缓
 MyBatis在多表查询时，极大可能会出现脏数据，有设计上的缺陷，安全使用二级缓存的条件比较苛刻。
 在分布式环境下，由于默认的MyBatis Cache实现都是基于本地的，分布式环境下必然会出现读取到脏数据，需要使用集中式缓存将MyBatis的Cache接口实现，有一定的开发成本，直接使用Redis、Memcached等分布式缓存可能成本更低，安全性也更高。
 
-## mybatis的缓存机制和spring的缓存机制的区别
-
 ## Mybatis和JDBC的区别
 
 ## 如果有大量的增删操作，那么应该选择哪个存储引擎，为什么？ 
-
 
 # spring
 ## spring的ioc和aop的实现原理
