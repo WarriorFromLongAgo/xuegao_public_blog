@@ -1459,30 +1459,33 @@ IoC还提供了一些扩展点，可以进一步增强应用程序的可维护�
 BeanPostProcessor：在Bean初始化前后对Bean进行处理，如检查标记接口，自动代理等。
 
 ## aop在项目中用过吗？怎么用的？底层如何实现的？介绍一下动态代理。jdk原生的动态代理和cglib的动态代理有什么区别？ 
-我们是自己实现
+AOP 叫做面向切面编程，他是一个编程范式，目的就是提高代码的模块性。Srping AOP 基于动态代理的方式实现，如果是实现了接口的话就会使用 JDK 动态代理，反之则使用 CGLIB 代理，Spring中 AOP 的应用主要体现在 事务、日志、异常处理等方面，通过在代码的前后做一些增强处理，可以实现对业务逻辑的隔离，提高代码的模块化能力，同时也是解耦。Spring主要提供了 Aspect 切面、JoinPoint 连接点、PointCut 切入点、Advice 增强等实现方式。
 
-
-
+JDK 动态代理主要是针对类实现了某个接口，AOP 则会使用 JDK 动态代理。他基于反射的机制实现，生成一个实现同样接口的一个代理类，然后通过重写方法的方式，实现对代码的增强。
+而如果某个类没有实现接口，AOP 则会使用 CGLIB 代理。他的底层原理是基于 asm 第三方框架，通过修改字节码生成成成一个子类，然后重写父类的方法，实现对代码的增强。
 
 ## Spring中的事务管理是如何实现的？
 
-
-## Spring 事务了解吗，Spring 事务的注解不生效，是什么原因
+## Spring 事务的注解不生效，是什么原因
 
 ## spring的事务传播机制
+PROPAGATION_REQUIRED：如果当前没有事务，就创建一个新事务，如果当前存在事务，就加入该事务，这也是通常我们的默认选择。
+PROPAGATION_REQUIRES_NEW：创建新事务，无论当前存不存在事务，都创建新事务。
+PROPAGATION_NESTED：如果当前存在事务，则在嵌套事务内执行。如果当前没有事务，则按REQUIRED属性执行。
+PROPAGATION_NOT_SUPPORTED：以非事务方式执行操作，如果当前存在事务，就把当前事务挂起。
+PROPAGATION_NEVER：以非事务方式执行，如果当前存在事务，则抛出异常。
+PROPAGATION_MANDATORY：支持当前事务，如果当前存在事务，就加入该事务，如果当前不存在事务，就抛出异常。
+PROPAGATION_SUPPORTS：支持当前事务，如果当前存在事务，就加入该事务，如果当前不存在事务，就以非事务执行。
 
 ## spring的事务隔离级别
 
 ## 事务为什么在public方法上才有效？
 在spring中，有两种动态代理的方式，一种是jdk，它是将原始对象放入代理对象内部，通过调用内含的原始对象来实现原始的业务逻辑，这是一种装饰器模式；而另一种是cglib，它是通过生成原始对象的子类，子类复写父类的方法，从而实现对父类的增强。
-
-jdk中，如果是private的方法，显然是无法访问的，而在cglib中，也是同样，private方法也无法访问。于是原始对象的业务逻辑就丢失了，那么怎么进行增强呢？
-
-于是这个问题实际在于，被aop增强的方法都应该是public的，而不能是private的
+jdk中，如果是private的方法，显然是无法访问的，而在cglib中，也是同样，private方法也无法访问。
 
 ## Spring Bean 的作用域
 
-## Spring Bean 的生命周期
+## spring的扩展点
 
 ## 解释一下Spring中的BeanFactory和ApplicationContext有什么区别。
 BeanFactory是Spring IoC容器的最基本形式，提供了基本的IoC功能。
@@ -1491,35 +1494,30 @@ BeanFactory是Spring IoC容器的最基本形式，提供了基本的IoC功能�
 ApplicationContext是BeanFactory的子接口，提供了更多的企业级功能，如AOP，事件驱动，国际化等。
 ApplicationContext也是预初始化的，即在容器启动时就已经创建了所有的Bean。
 
-## spring本地缓存，多级缓存如何保证数据一致性
 
 ## 配置了@Service就一定会放入bean中吗？有没有什么条件？
 
 ## 如果第三方jar包中有一个@Service，会被扫描进来吗？
 
-
-
 ## 第三方jar包如何保证spring会将它加载进spring中？第三方jar包要想被扫描进来的话是要将它的类路径加载进spring是吗？
 
 ## springboot如何实现自动装配的？
-
-## Spring中为什么要将bean交给Spring来管理？
 
 ## 如果我自己弄一套Controller、Service、Dao，不依赖spring容器，能不能work，这个过程应该怎么写知道吗？
 
 ## Spring的bean通常会new多少个对象，比如userService是每一个请求来了就new一个userService还是全局共享一个userService？
 
+
 ## 单例和多例有什么区别，什么时候用多例。
 
-## 就拿这个userService来说，假设里面有个一个getUserById的方法，那应该把这个userService的scope设置成单例的还是session的？singleton，因为一般来说service和dao都是无状态的，只是通过service和dao来操作数据库，使用session或者prototype的话也可以，只是会浪费资源。
-
-## spring的扩展点
+## 就拿这个userService来说，假设里面有个一个getUserById的方法，那应该把这个userService的scope设置成单例的还是session的？
+singleton，因为一般来说service和dao都是无状态的，只是通过service和dao来操作数据库，使用session或者prototype的话也可以，只是会浪费资源。
 
 ## Spring 怎么替换原始bean对象 。
 
 ## SpringBoot的启动流程。
 
-## 三级缓存怎么实现一致性？
+## spring本地缓存，多级缓存如何保证数据一致性
 
 ## 本地缓存修改后，同步到redis的频率？
 
@@ -1529,7 +1527,6 @@ ApplicationContext也是预初始化的，即在容器启动时就已经创建�
 ## 什么是 RPC?RPC原理是什么? 
 
 ## 了解SOA，微服务吗？
-
 
 ## 分布式系统如何负载均衡？如何确定访问的资源在哪个服务器上？
 负载均衡将请求派发到网络中的一个或多个节点上进行处理。 硬件负载均衡，即通过在服务器间安装专门的硬件来进行负载均衡工作 软件负载均衡，通过服务器上安装的软件来对请求进行分配派发。
