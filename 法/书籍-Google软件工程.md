@@ -174,6 +174,8 @@ EPR团队对可读性进行了深入的研究，包括但不限于人们是否�
 
 https://qiangmzsx.github.io/Software-Engineering-at-Google/#/zh-cn/Chapter-4_Engineering_for_Equity/Chapter-4_Engineering_for_Equity
 
+## 了解多样性的必要性
+每个用户是不一样的
 
 
 
