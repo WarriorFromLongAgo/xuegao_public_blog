@@ -15,8 +15,8 @@ function calculateActualInterestRate(principal, interest) {
 
 console.log("======================================================");
 // 金融服务费
-let principal_2 = 100000
-let interest_2 = 3000
+let principal_2 = 120000
+let interest_2 = 7942
 calculateActualInterestRate_2(principal_2, interest_2)
 function calculateActualInterestRate_2(principal, interest) {
     console.log("本金 = ", principal);
