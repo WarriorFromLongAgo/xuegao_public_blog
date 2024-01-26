@@ -1,35 +1,31 @@
-function calculateEqualPrincipalMonthlyPayment(principal, annualInterestRate, loanTermMonths) {
-    // 将年利率转换为月利率
-    let monthlyInterestRate = annualInterestRate / 12 / 100;
+function calculateActualInterestRate(principal, cashFlows) {
+    let annualInterestRate = 0.1;  // 初始年化利率，可根据实际情况调整
+    let tolerance = 0.0001;  // 容差值，控制迭代精度
 
-    let amortizationSchedule = [];
+    // 迭代计算实际年化利率
+    for (let i = 0; i < 1000; i++) {
+        let presentValue = 0;
 
-    for (let i = 1; i <= loanTermMonths; i++) {
-        // 计算每月应还本金
-        let monthlyPrincipalPayment = principal / loanTermMonths;
+        // 计算每期现金流的现值
+        for (let j = 0; j < cashFlows.length; j++) {
+            presentValue += cashFlows[j] / Math.pow(1 + annualInterestRate, j);
+        }
 
-        // 计算每月利息
-        let interestPayment = (principal - monthlyPrincipalPayment * (i - 1)) * monthlyInterestRate;
+        // 如果现值与零相差较小，则认为找到了合适的年化利率
+        if (Math.abs(presentValue) < tolerance) {
+            break;
+        }
 
-        // 计算每月总还款金额
-        let monthlyPayment = monthlyPrincipalPayment + interestPayment;
-
-        amortizationSchedule.push({
-            month: i,
-            principalPayment: monthlyPrincipalPayment.toFixed(2),
-            interestPayment: interestPayment.toFixed(2),
-            totalPayment: monthlyPayment.toFixed(2),
-            remainingPrincipal: (principal - monthlyPrincipalPayment * i).toFixed(2),
-        });
+        // 调整年化利率
+        annualInterestRate += presentValue / principal;
     }
 
-    return amortizationSchedule;
+    return (annualInterestRate * 100).toFixed(2);
 }
 
-let loanPrincipal = 120000; // 贷款本金
-let annualInterestRate = 12; // 年化利率（单利）
-let loanTermMonths = 12; // 贷款期限（月）
+let principal = -100; // 初始支出
+let cashFlows = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]; // 每个月的现金流
 
-let amortizationSchedule = calculateEqualPrincipalMonthlyPayment(loanPrincipal, annualInterestRate, loanTermMonths);
+let interestRate = calculateActualInterestRate(principal, cashFlows);
 
-console.log("Amortization Schedule:", JSON.stringify(amortizationSchedule));
+console.log("Actual Annual Interest Rate:", interestRate, "%");

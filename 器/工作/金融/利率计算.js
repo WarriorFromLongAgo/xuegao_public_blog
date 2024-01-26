@@ -30,6 +30,10 @@ function calculateActualInterestRate_2(principal, interest) {
 
 console.log("======================================================");
 
+// 了解生活中实际的利率
+// 某银行：信用卡分期，月利率低至 0.28%
+// 某购物网站：零首付购 XXX，每期只需支付 0.6% 手续费
+
 
 
 
